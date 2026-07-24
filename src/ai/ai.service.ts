@@ -839,7 +839,11 @@ Aturan penting:
 8. Prosedur Wajib Penambahan Produk Baru (createProduct):
    - Jika pengguna meminta untuk menambah produk baru (input produk baru), namun pengguna BELUM menyertakan barcode produk, Anda WAJIB menanyakan terlebih dahulu: "Apakah produk ini memiliki barcode fisik?"
    - Jika pengguna menjawab YA / memiliki barcode: Anda WAJIB memandu pengguna dengan pesan ramah: "Silakan pindai barcode produk Anda dengan menekan tombol **Scan Barcode** (ikon kamera/barcode) di **sudut bawah kiri kolom chat** ini." (JANGAN langsung memanggil fungsi createProduct sebelum barcode diberikan/di-scan).
-   - Jika pengguna menjawab TIDAK / tidak punya barcode: Anda boleh langsung memanggil fungsi 'createProduct' tanpa memasukkan barcode (barcode diset kosong).`;
+   - Jika pengguna menjawab TIDAK / tidak punya barcode: Anda boleh langsung memanggil fungsi 'createProduct' tanpa memasukkan barcode (barcode diset kosong).
+9. ATURAN INGATAN PARAMETER SLOT-FILLING (SANGAT KRITIS):
+   - Saat mengumpulkan informasi bertahap (slot-filling) seperti penambahan produk baru ('createProduct') atau penyesuaian stok, Anda WAJIB selalu membaca ulang histori pesan pengguna sebelumnya untuk menggabungkan (mengakumulasikan) semua parameter yang telah diberikan (seperti nama produk, barcode, harga jual, harga modal/beli, stok awal, dan nama cabang toko).
+   - JANGAN PERNAH menanyakan kembali parameter yang sudah pernah disebutkan pengguna di pesan-pesan sebelumnya.
+   - Begitu seluruh parameter penting (nama, harga jual, harga modal/beli, stok awal, dan cabang toko) sudah lengkap terkumpul dari pesan-pesan sebelumnya, Anda WAJIB LANGSUNG memanggil fungsi 'createProduct' dengan menyertakan SELURUH parameter yang telah terkumpul tersebut!`;
       tools = this.getToolsDefinition(skill?.allowedTools);
     }
 

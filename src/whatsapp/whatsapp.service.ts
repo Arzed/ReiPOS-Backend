@@ -32,12 +32,14 @@ export class WhatsappService {
       storeId = fallbackStore.id;
     }
 
-    // 2. Retrieve session history from DB (last 10 messages)
-    const dbMessages = await (this.prisma as any).chatMessage.findMany({
+    // 2. Retrieve session history from DB (last 20 most recent messages)
+    const dbMessagesDesc = await (this.prisma as any).chatMessage.findMany({
       where: { phone: from, skillId: skillId || null },
-      orderBy: { createdAt: 'asc' },
-      take: 10,
+      orderBy: { createdAt: 'desc' },
+      take: 20,
     });
+
+    const dbMessages = dbMessagesDesc.reverse();
 
     const history = dbMessages.map((m: any) => ({
       role: m.role as 'user' | 'assistant' | 'system',
