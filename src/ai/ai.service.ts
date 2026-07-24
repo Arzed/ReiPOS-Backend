@@ -665,15 +665,60 @@ export class AiService {
 
           const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
 
+          // Ambil nama seluruh toko milik Owner untuk breakdown per cabang
+          const allOwnerStores = currentStore
+            ? await this.prisma.store.findMany({ where: { ownerId: currentStore.ownerId } })
+            : await this.prisma.store.findMany({ where: { id: { in: targetStoreIds } } });
+          
+          const storeNameMap = new Map(allOwnerStores.map(s => [s.id, s.name]));
+
+          // Stat gabungan per kasir
           const statsMap: Record<string, { cashierName: string; totalTransactions: number; totalRevenue: number; totalProfit: number }> = {};
+          
+          // Stat breakdown terpisah per cabang toko
+          const storeMap: Record<string, { storeId: string; storeName: string; totalRevenue: number; totalOrders: number; cashiers: Record<string, { cashierName: string; totalTransactions: number; totalRevenue: number; totalProfit: number }> }> = {};
+
+          for (const sId of targetStoreIds) {
+            storeMap[sId] = {
+              storeId: sId,
+              storeName: storeNameMap.get(sId) || 'Toko Cabang',
+              totalRevenue: 0,
+              totalOrders: 0,
+              cashiers: {}
+            };
+          }
+
           for (const o of orders) {
             const name = o.cashierName || 'Owner/Kasir';
+            const sId = o.storeId;
+
+            // Total gabungan
             if (!statsMap[name]) {
               statsMap[name] = { cashierName: name, totalTransactions: 0, totalRevenue: 0, totalProfit: 0 };
             }
             statsMap[name].totalTransactions += 1;
             statsMap[name].totalRevenue += o.totalAmount;
             statsMap[name].totalProfit += o.totalProfit;
+
+            // Breakdown per toko
+            if (!storeMap[sId]) {
+              storeMap[sId] = {
+                storeId: sId,
+                storeName: storeNameMap.get(sId) || 'Toko Cabang',
+                totalRevenue: 0,
+                totalOrders: 0,
+                cashiers: {}
+              };
+            }
+            storeMap[sId].totalRevenue += o.totalAmount;
+            storeMap[sId].totalOrders += 1;
+
+            if (!storeMap[sId].cashiers[name]) {
+              storeMap[sId].cashiers[name] = { cashierName: name, totalTransactions: 0, totalRevenue: 0, totalProfit: 0 };
+            }
+            storeMap[sId].cashiers[name].totalTransactions += 1;
+            storeMap[sId].cashiers[name].totalRevenue += o.totalAmount;
+            storeMap[sId].cashiers[name].totalProfit += o.totalProfit;
           }
 
           const cashierKpis = Object.values(statsMap).map(item => {
@@ -686,11 +731,31 @@ export class AiService {
             };
           }).sort((a, b) => b.totalRevenue - a.totalRevenue);
 
+          const storeBreakdown = Object.values(storeMap).map(s => {
+            const sRev = s.totalRevenue;
+            const cashierList = Object.values(s.cashiers).map(c => ({
+              cashierName: c.cashierName,
+              totalTransactions: c.totalTransactions,
+              totalRevenue: c.totalRevenue,
+              avgTransactionValue: c.totalTransactions > 0 ? Math.round(c.totalRevenue / c.totalTransactions) : 0,
+              contributionInStore: sRev > 0 ? parseFloat(((c.totalRevenue / sRev) * 100).toFixed(1)) : 0
+            })).sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+            return {
+              storeId: s.storeId,
+              storeName: s.storeName,
+              totalRevenue: s.totalRevenue,
+              totalOrders: s.totalOrders,
+              cashierKpis: cashierList
+            };
+          });
+
           return {
             period,
             totalStoreRevenue: totalRevenue,
             totalOrdersProcessed: orders.length,
-            cashierKpis
+            overallCashierKpis: cashierKpis,
+            storeBreakdown
           };
         }
 
@@ -766,7 +831,8 @@ Aturan penting:
 3. Jawablah respon akhir dengan bahasa Indonesia yang santun, ramah, dan ringkas layaknya percakapan WhatsApp. Gunakan bullet point atau emoji untuk merapikan laporan. Jika pengguna bertanya cara menggunakan suatu fitur di aplikasi mobile, jelaskan navigasinya sesuai informasi layout di atas.
 4. Pemilik/owner dapat memiliki beberapa cabang toko (outlet). Anda bisa mengambil data dari SEMUA cabang atau dari cabang tertentu saja dengan menyetel parameter 'allStores: true' or 'storeName' pada fungsi yang dipanggil. Tampilkan rincian (breakdown) per cabang jika pengguna meminta performa keseluruhan toko mereka.
 5. Jika pengguna menanyakan omzet seluruh toko atau cabangnya, Anda wajib menampilkan rincian (breakdown) omzet masing-masing toko satu per satu (termasuk yang bernilai Rp 0) di respon akhir Anda secara transparan.
-6. Jika pengguna mencari atau menanyakan stok suatu produk, dan nama produk di database (hasil pencarian/tool) mirip atau mendekati tetapi tidak sama persis (misal: pengguna mengetik "kopi abc kopi susu" sedangkan di database bernama "ABC Kopi Susu"), Anda WAJIB mengonfirmasi terlebih dahulu ke pengguna apakah benar "ABC Kopi Susu" yang mereka maksud sebelum membeberkan detail stoknya.`;
+6. Jika pengguna mencari atau menanyakan stok suatu produk, dan nama produk di database (hasil pencarian/tool) mirip atau mendekati tetapi tidak sama persis (misal: pengguna mengetik "kopi abc kopi susu" sedangkan di database bernama "ABC Kopi Susu"), Anda WAJIB mengonfirmasi terlebih dahulu ke pengguna apakah benar "ABC Kopi Susu" yang mereka maksud sebelum membeberkan detail stoknya.
+7. Jika pengguna menanyakan KPI, performa, atau rekapitulasi pegawai/kasir (terutama jika disetel 'allStores: true' atau ditanyakan per cabang), Anda WAJIB menyajikan data breakdown performa & omzet pegawai masing-masing cabang toko secara TERPISAH (per section/tabel tiap cabang), disusul dengan rangkuman/peringkat keseluruhan.`;
       tools = this.getToolsDefinition(skill?.allowedTools);
     }
 
