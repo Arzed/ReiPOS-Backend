@@ -72,7 +72,7 @@ export class AiService {
         type: 'function',
         function: {
           name: 'createProduct',
-          description: 'Menambahkan produk baru ke toko.',
+          description: 'Menambahkan produk baru ke toko. Sebelum memanggil fungsi ini, jika pengguna belum memberikan barcode, tanyakan dulu apakah produk memiliki barcode dan pandu pengguna untuk menekan tombol scan di bawah kiri kolom chat.',
           parameters: {
             type: 'object',
             properties: {
@@ -80,10 +80,10 @@ export class AiService {
               price: { type: 'number', description: 'Harga jual produk' },
               costPrice: { type: 'number', description: 'Harga modal/beli produk' },
               stock: { type: 'number', description: 'Stok awal produk' },
-              barcode: { type: 'string', description: 'Barcode atau SKU produk' },
+              barcode: { type: 'string', description: 'Barcode atau SKU produk (kosongkan jika produk tidak memiliki barcode)' },
               storeName: { type: 'string', description: 'Nama cabang toko tempat produk akan ditambahkan (misal: Jakarta, Bandung)' },
             },
-            required: ['name', 'price', 'costPrice', 'stock', 'barcode', 'storeName'],
+            required: ['name', 'price', 'costPrice', 'stock', 'storeName'],
           },
         },
       },
@@ -795,6 +795,9 @@ export class AiService {
 - Header Aplikasi (App Header) di bagian atas setiap halaman:
   - Sisi Kiri: Dropdown pilihan Cabang Outlet.
   - Sisi Kanan: Pilihan ikon "Tanya AI" (membuka halaman AiSelector untuk memilih spesialis asisten), ikon "Lonceng" (notifikasi), dan ikon "Gerigi" (Pengaturan).
+- Halaman Chat AI (Tanya AI):
+  - Di bagian bawah layar percakapan terdapat kolom input teks.
+  - Di sudut bawah kiri kolom chat (sebelah kiri input teks), terdapat tombol **Scan Barcode** (ikon kamera/barcode). Jika ditap, kamera scanner barcode akan terbuka untuk memindai barcode fisik produk dan langsung memasukkannya ke dalam percakapan chat.
 - Halaman Pengaturan (Settings):
   - Owner/Leader: Mengelola Langganan Premium, Outlet & Cabang (input target bulanan cabang), Pengguna & Role (karyawan), Printer POS Bluetooth, Threshold batas stok menipis, Kunci PIN keamanan, Pajak PPN, dan Keluar Akun.
   - Pegawai (Employee): Hanya menampilkan Pengaturan Printer POS, Bantuan CS WhatsApp, Tentang Platform, dan Keluar Akun.
@@ -832,7 +835,11 @@ Aturan penting:
 4. Pemilik/owner dapat memiliki beberapa cabang toko (outlet). Anda bisa mengambil data dari SEMUA cabang atau dari cabang tertentu saja dengan menyetel parameter 'allStores: true' or 'storeName' pada fungsi yang dipanggil. Tampilkan rincian (breakdown) per cabang jika pengguna meminta performa keseluruhan toko mereka.
 5. Jika pengguna menanyakan omzet seluruh toko atau cabangnya, Anda wajib menampilkan rincian (breakdown) omzet masing-masing toko satu per satu (termasuk yang bernilai Rp 0) di respon akhir Anda secara transparan.
 6. Jika pengguna mencari atau menanyakan stok suatu produk, dan nama produk di database (hasil pencarian/tool) mirip atau mendekati tetapi tidak sama persis (misal: pengguna mengetik "kopi abc kopi susu" sedangkan di database bernama "ABC Kopi Susu"), Anda WAJIB mengonfirmasi terlebih dahulu ke pengguna apakah benar "ABC Kopi Susu" yang mereka maksud sebelum membeberkan detail stoknya.
-7. Jika pengguna menanyakan KPI, performa, atau rekapitulasi pegawai/kasir (terutama jika disetel 'allStores: true' atau ditanyakan per cabang), Anda WAJIB menyajikan data breakdown performa & omzet pegawai masing-masing cabang toko secara TERPISAH (per section/tabel tiap cabang), disusul dengan rangkuman/peringkat keseluruhan.`;
+7. Jika pengguna menanyakan KPI, performa, atau rekapitulasi pegawai/kasir (terutama jika disetel 'allStores: true' atau ditanyakan per cabang), Anda WAJIB menyajikan data breakdown performa & omzet pegawai masing-masing cabang toko secara TERPISAH (per section/tabel tiap cabang), disusul dengan rangkuman/peringkat keseluruhan.
+8. Prosedur Wajib Penambahan Produk Baru (createProduct):
+   - Jika pengguna meminta untuk menambah produk baru (input produk baru), namun pengguna BELUM menyertakan barcode produk, Anda WAJIB menanyakan terlebih dahulu: "Apakah produk ini memiliki barcode fisik?"
+   - Jika pengguna menjawab YA / memiliki barcode: Anda WAJIB memandu pengguna dengan pesan ramah: "Silakan pindai barcode produk Anda dengan menekan tombol **Scan Barcode** (ikon kamera/barcode) di **sudut bawah kiri kolom chat** ini." (JANGAN langsung memanggil fungsi createProduct sebelum barcode diberikan/di-scan).
+   - Jika pengguna menjawab TIDAK / tidak punya barcode: Anda boleh langsung memanggil fungsi 'createProduct' tanpa memasukkan barcode (barcode diset kosong).`;
       tools = this.getToolsDefinition(skill?.allowedTools);
     }
 
