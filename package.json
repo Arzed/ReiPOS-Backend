@@ -22,6 +22,9 @@
     "npm": ">=10.0.0",
     "node": ">=20.0.0"
   },
+  "prisma": {
+    "seed": "ts-node prisma/seed.ts"
+  },
   "dependencies": {
     "@nestjs/common": "^11.0.17",
     "@nestjs/core": "^11.0.1",

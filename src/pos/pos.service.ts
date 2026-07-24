@@ -367,4 +367,87 @@ export class PosService {
       },
     });
   }
+
+  async getEmployeeKPI(storeId?: string, period: string = 'monthly', ownerId?: string) {
+    let targetStoreIds: string[] = [];
+
+    if (storeId && storeId !== 'all') {
+      targetStoreIds = [storeId];
+    } else if (ownerId) {
+      const stores = await this.prisma.store.findMany({ where: { ownerId } });
+      targetStoreIds = stores.map((s) => s.id);
+    } else {
+      const stores = await this.prisma.store.findMany({ take: 10 });
+      targetStoreIds = stores.map((s) => s.id);
+    }
+
+    const now = new Date();
+    let startDate = new Date();
+
+    if (period === 'today') {
+      startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    } else if (period === 'weekly') {
+      startDate = new Date(now);
+      startDate.setDate(now.getDate() - 7);
+    } else {
+      // monthly (default)
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+    }
+
+    const orders = await this.prisma.order.findMany({
+      where: {
+        storeId: { in: targetStoreIds },
+        paymentStatus: 'PAID',
+        createdAt: { gte: startDate },
+      },
+    });
+
+    const storeTotalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+
+    const statsMap: Record<
+      string,
+      {
+        cashierId: string | null;
+        cashierName: string;
+        totalTransactions: number;
+        totalRevenue: number;
+        totalProfit: number;
+      }
+    > = {};
+
+    for (const o of orders) {
+      const name = o.cashierName || 'Owner/Kasir';
+      if (!statsMap[name]) {
+        statsMap[name] = {
+          cashierId: o.cashierId || null,
+          cashierName: name,
+          totalTransactions: 0,
+          totalRevenue: 0,
+          totalProfit: 0,
+        };
+      }
+      statsMap[name].totalTransactions += 1;
+      statsMap[name].totalRevenue += o.totalAmount;
+      statsMap[name].totalProfit += o.totalProfit;
+    }
+
+    const result = Object.values(statsMap).map((item) => {
+      const percentage = storeTotalRevenue > 0 ? (item.totalRevenue / storeTotalRevenue) * 100 : 0;
+      const avgValue = item.totalTransactions > 0 ? item.totalRevenue / item.totalTransactions : 0;
+      return {
+        ...item,
+        avgTransactionValue: Math.round(avgValue),
+        percentage: parseFloat(percentage.toFixed(1)),
+      };
+    });
+
+    result.sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+    return {
+      period,
+      totalStoreRevenue: storeTotalRevenue,
+      totalOrders: orders.length,
+      cashierKpis: result,
+    };
+  }
 }

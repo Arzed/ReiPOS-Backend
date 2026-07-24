@@ -207,6 +207,22 @@ export class AiService {
       },
     });
 
+    allTools.push({
+      type: 'function',
+      function: {
+        name: 'getEmployeeKPI',
+        description: 'Menganalisis KPI dan performa penjualan masing-masing pegawai/kasir (omzet, jumlah transaksi, rata-rata nominal transaksi, dan kontribusi %).',
+        parameters: {
+          type: 'object',
+          properties: {
+            period: { type: 'string', enum: ['today', 'weekly', 'monthly'], description: 'Periode analisis (default monthly)' },
+            storeName: { type: 'string', description: 'Nama cabang toko tertentu (misal: Jakarta, Bandung)' },
+            allStores: { type: 'boolean', description: 'Ambil KPI pegawai dari semua cabang toko milik Owner' },
+          },
+        },
+      },
+    });
+
     if (allowedTools) {
       return allTools.filter(t => allowedTools.includes((t as any).function?.name));
     }
@@ -613,6 +629,71 @@ export class AiService {
           };
         }
 
+        case 'getEmployeeKPI': {
+          let targetStoreIds: string[] = [storeId];
+          if (args.storeName && currentStore) {
+            const ownerStores = await this.prisma.store.findMany({ where: { ownerId: currentStore.ownerId } });
+            const matched = ownerStores.find(s => s.name.toLowerCase().includes(args.storeName.toLowerCase()));
+            if (matched) {
+              targetStoreIds = [matched.id];
+            }
+          } else if (args.allStores && currentStore) {
+            const ownerStores = await this.prisma.store.findMany({ where: { ownerId: currentStore.ownerId } });
+            targetStoreIds = ownerStores.map(s => s.id);
+          }
+
+          const period = args.period || 'monthly';
+          const now = new Date();
+          let startDate = new Date();
+
+          if (period === 'today') {
+            startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          } else if (period === 'weekly') {
+            startDate = new Date(now);
+            startDate.setDate(now.getDate() - 7);
+          } else {
+            startDate = new Date(now.getFullYear(), now.getMonth(), 1);
+          }
+
+          const orders = await this.prisma.order.findMany({
+            where: {
+              storeId: { in: targetStoreIds },
+              paymentStatus: 'PAID',
+              createdAt: { gte: startDate }
+            }
+          });
+
+          const totalRevenue = orders.reduce((sum, o) => sum + o.totalAmount, 0);
+
+          const statsMap: Record<string, { cashierName: string; totalTransactions: number; totalRevenue: number; totalProfit: number }> = {};
+          for (const o of orders) {
+            const name = o.cashierName || 'Owner/Kasir';
+            if (!statsMap[name]) {
+              statsMap[name] = { cashierName: name, totalTransactions: 0, totalRevenue: 0, totalProfit: 0 };
+            }
+            statsMap[name].totalTransactions += 1;
+            statsMap[name].totalRevenue += o.totalAmount;
+            statsMap[name].totalProfit += o.totalProfit;
+          }
+
+          const cashierKpis = Object.values(statsMap).map(item => {
+            const percentage = totalRevenue > 0 ? (item.totalRevenue / totalRevenue) * 100 : 0;
+            const avgValue = item.totalTransactions > 0 ? item.totalRevenue / item.totalTransactions : 0;
+            return {
+              ...item,
+              avgTransactionValue: Math.round(avgValue),
+              contributionPercentage: parseFloat(percentage.toFixed(1))
+            };
+          }).sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+          return {
+            period,
+            totalStoreRevenue: totalRevenue,
+            totalOrdersProcessed: orders.length,
+            cashierKpis
+          };
+        }
+
         default:
           return { error: 'Tool tidak dikenali' };
       }
@@ -797,6 +878,12 @@ Aturan penting:
       return `${skillPrefix}Halo! Saya di sini untuk memberikan panduan operasional penggunaan aplikasi (scan barang, tambah stok, catat transaksi). Ada yang bisa saya bantu?`;
     }
 
+    if (text.includes('kpi') || text.includes('kinerja') || text.includes('pegawai') || text.includes('kasir')) {
+      return `${skillPrefix}📊 *Rekap KPI & Performa Pegawai/Kasir Bulan Ini*:\n\n` +
+        `1. 🥇 *Budi Santoso* (Kasir Jakarta)\n   • Total Omzet: *Rp 4.500.000* (65.2% kontribusi)\n   • Transaksi: *42 pesanan* (Rata-rata: Rp 107.142)\n\n` +
+        `2. 🥈 *Siti Aminah* (Kasir Bandung)\n   • Total Omzet: *Rp 2.400.000* (34.8% kontribusi)\n   • Transaksi: *28 pesanan* (Rata-rata: Rp 85.714)\n\n` +
+        `💡 *Rekomendasi HR*: Budi Santoso menunjukkan performa teratas bulan ini. Pertahankan pemberian insentif transaksi!`;
+    }
     if (text.includes('target') || text.includes('capai') || text.includes('saran')) {
       return `${skillPrefix}Target bulan ini *Rp100 juta*.\n\nSaat ini baru tercapai *62%*.\n\nAnda membutuhkan rata-rata *Rp1,45 juta* per hari agar target tercapai.\n\nFokus menjual:\n- *Aqua*\n- *Indomie*\n- *Kopi ABC*\n\nKarena margin dan permintaannya tinggi.`;
     }

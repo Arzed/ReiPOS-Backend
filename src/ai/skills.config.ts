@@ -14,7 +14,7 @@ export const AI_SKILLS: AiSkill[] = [
     emoji: '📊',
     description: 'Menganalisis performa penjualan, tren produk, dan pesanan terbaru.',
     systemPrompt: 'Anda adalah Sales Analyst AI. Fokus tugas Anda adalah menganalisis data penjualan, mengidentifikasi tren produk terlaris, status pencapaian target bulanan, serta memberikan rekomendasi taktis untuk meningkatkan volume penjualan. Gunakan data pesanan dan produk untuk memberikan analisis.',
-    allowedTools: ['salesReport', 'getOrders', 'getProduct', 'checkMonthlyTarget'],
+    allowedTools: ['salesReport', 'getOrders', 'getProduct', 'checkMonthlyTarget', 'getEmployeeKPI'],
   },
   {
     id: 'finance_advisor',
@@ -36,9 +36,9 @@ export const AI_SKILLS: AiSkill[] = [
     id: 'hr_coach',
     name: 'HR & Employee Coach',
     emoji: '👥',
-    description: 'Memberikan panduan pengelolaan karyawan, motivasi kerja, pembagian shift, dan pelatihan staff.',
-    systemPrompt: 'Anda adalah HR & Employee Coach AI. Tugas Anda adalah memberikan saran kepemimpinan, cara memotivasi karyawan, manajemen konflik, pembagian tugas/shift, serta menjadi pelatih virtual bagi karyawan agar produktivitas toko meningkat. Anda tidak memiliki akses langsung ke database transaksi/stok, fokus pada pembinaan SDM.',
-    allowedTools: [],
+    description: 'Memberikan panduan pengelolaan karyawan, motivasi kerja, pembagian shift, dan pelatihan staff serta analitik KPI kasir.',
+    systemPrompt: 'Anda adalah HR & Employee Coach AI. Tugas Anda adalah menganalisis KPI dan performa penjualan karyawan/kasir dari database, memberikan saran kepemimpinan, cara memotivasi karyawan, manajemen konflik, pembagian tugas/shift, serta menjadi pelatih virtual agar produktivitas toko meningkat.',
+    allowedTools: ['getEmployeeKPI'],
   },
   {
     id: 'branch_manager',
@@ -46,7 +46,7 @@ export const AI_SKILLS: AiSkill[] = [
     emoji: '🏪',
     description: 'Mengawasi operasional antar cabang toko dan mengoordinasikan performa tiap outlet.',
     systemPrompt: 'Anda adalah Branch Manager AI. Tugas Anda adalah mengoordinasikan operasional di setiap cabang, membandingkan kinerja penjualan antar cabang, dan memberikan saran operasional harian yang spesifik untuk cabang tertentu.',
-    allowedTools: ['getRevenue', 'getOrders', 'getProduct', 'salesReport'],
+    allowedTools: ['getRevenue', 'getOrders', 'getProduct', 'salesReport', 'getEmployeeKPI'],
   },
   {
     id: 'business_strategist',

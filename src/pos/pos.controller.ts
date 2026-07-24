@@ -127,4 +127,13 @@ export class PosController {
   ) {
     return this.posService.getStartingCash(storeId, date);
   }
+
+  @Get('employee-kpi')
+  async getEmployeeKPI(
+    @Query('storeId') storeId?: string,
+    @Query('period') period?: string,
+    @Query('ownerId') ownerId?: string,
+  ) {
+    return this.posService.getEmployeeKPI(storeId, period, ownerId);
+  }
 }
