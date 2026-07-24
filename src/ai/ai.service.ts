@@ -786,11 +786,13 @@ Aturan penting:
         
         let response;
         let activeClient = this.geminiClient;
-        let activeModel = 'models/gemini-3.5-flash';
+        const geminiModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+        const deepseekModel = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+        let activeModel = geminiModel;
 
         if (!activeClient) {
           activeClient = this.deepseekClient;
-          activeModel = 'deepseek-chat';
+          activeModel = deepseekModel;
         }
 
         try {
@@ -808,16 +810,33 @@ Aturan penting:
           console.warn(`Primary AI client (${activeModel}) failed:`, geminiError.message || geminiError);
           
           if (activeClient === this.geminiClient && this.deepseekClient) {
-            console.log('Falling back to DeepSeek client (deepseek-chat)...');
+            console.log(`Falling back to DeepSeek client (${deepseekModel})...`);
             activeClient = this.deepseekClient;
-            activeModel = 'deepseek-chat';
+            activeModel = deepseekModel;
             
-            response = await activeClient.chat.completions.create({
-              model: activeModel,
-              messages,
-              tools: tools.length > 0 ? tools : undefined,
-              tool_choice: tools.length > 0 ? 'auto' : undefined,
-            });
+            try {
+              response = await activeClient.chat.completions.create({
+                model: activeModel,
+                messages,
+                tools: tools.length > 0 ? tools : undefined,
+                tool_choice: tools.length > 0 ? 'auto' : undefined,
+              });
+            } catch (dsError: any) {
+              const errMsg = dsError.message || '';
+              // If deepseek-v4-flash is rejected by provider, try alternative model names
+              if (errMsg.includes('supported API model names') || errMsg.includes('deepseek-chat')) {
+                const altModel = errMsg.includes('deepseek-v4-pro') ? 'deepseek-v4-pro' : 'deepseek-chat';
+                console.log(`Retrying DeepSeek call with alternative model: ${altModel}...`);
+                response = await activeClient.chat.completions.create({
+                  model: altModel,
+                  messages,
+                  tools: tools.length > 0 ? tools : undefined,
+                  tool_choice: tools.length > 0 ? 'auto' : undefined,
+                });
+              } else {
+                throw dsError;
+              }
+            }
           } else {
             throw geminiError;
           }
