@@ -44,9 +44,11 @@ async function main() {
     { name: 'Toko ReiPOS - Bandung', location: 'Jl. Dago No. 120, Bandung' },
     { name: 'Toko ReiPOS - Surabaya', location: 'Jl. Basuki Rahmat No. 5, Surabaya' },
   ];
-  const stores = await Promise.all(
-    storesData.map((s) => prisma.store.create({ data: { ownerId: owner.id, ...s } })),
-  );
+  const stores = [];
+  for (const s of storesData) {
+    const store = await prisma.store.create({ data: { ownerId: owner.id, ...s } });
+    stores.push(store);
+  }
   console.log(`✓ Stores created: ${stores.map((s) => s.name).join(', ')}`);
 
   // ─── 3b. Create Employee Accounts ──────────────────────────────────────────
