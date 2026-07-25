@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Query } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common';
 import { PosService } from './pos.service';
 
 @Controller('pos')
@@ -135,5 +135,33 @@ export class PosController {
     @Query('ownerId') ownerId?: string,
   ) {
     return this.posService.getEmployeeKPI(storeId, period, ownerId);
+  }
+
+  @Post('employees')
+  async createEmployee(
+    @Body() body: {
+      ownerId: string;
+      storeId: string;
+      name: string;
+      email?: string;
+      password: string;
+      whatsappNum: string;
+      pin?: string;
+    },
+  ) {
+    return this.posService.createEmployee(body);
+  }
+
+  @Get('employees')
+  async getEmployees(
+    @Query('ownerId') ownerId?: string,
+    @Query('storeId') storeId?: string,
+  ) {
+    return this.posService.getEmployees(ownerId, storeId);
+  }
+
+  @Delete('employees/:id')
+  async deleteEmployee(@Param('id') id: string) {
+    return this.posService.deleteEmployee(id);
   }
 }

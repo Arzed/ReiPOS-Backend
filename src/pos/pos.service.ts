@@ -1,6 +1,7 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import * as QRCode from 'qrcode';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class PosService {
@@ -449,5 +450,112 @@ export class PosService {
       totalOrders: orders.length,
       cashierKpis: result,
     };
+  }
+
+  async createEmployee(data: {
+    ownerId: string;
+    storeId: string;
+    name: string;
+    email?: string;
+    password: string;
+    whatsappNum: string;
+    pin?: string;
+  }) {
+    const { ownerId, storeId, name, password, whatsappNum, pin } = data;
+    const cleanWhatsapp = whatsappNum.replace(/[^0-9]/g, '');
+    const email = data.email && data.email.trim().length > 0
+      ? data.email.trim()
+      : `${cleanWhatsapp}@reipos.com`;
+
+    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+    if (!store) {
+      throw new NotFoundException('Cabang toko tidak ditemukan.');
+    }
+
+    const existing = await this.prisma.owner.findFirst({
+      where: {
+        OR: [
+          { email },
+          { whatsappNum: cleanWhatsapp },
+        ],
+      },
+    });
+
+    if (existing) {
+      throw new ConflictException('Nomor WhatsApp atau Email sudah terdaftar.');
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const employee = await this.prisma.owner.create({
+      data: {
+        name,
+        email,
+        password: hashedPassword,
+        whatsappNum: cleanWhatsapp,
+        pin: pin || '123456',
+        role: 'employee',
+        storeId,
+      },
+      include: {
+        store: true,
+      },
+    });
+
+    return {
+      message: 'Pegawai berhasil ditambahkan.',
+      employee: {
+        id: employee.id,
+        name: employee.name,
+        email: employee.email,
+        whatsappNum: employee.whatsappNum,
+        role: employee.role,
+        storeId: employee.storeId,
+        storeName: employee.store?.name || '',
+      },
+    };
+  }
+
+  async getEmployees(ownerId?: string, storeId?: string) {
+    let targetStoreIds: string[] = [];
+
+    if (storeId && storeId !== 'all') {
+      targetStoreIds = [storeId];
+    } else if (ownerId) {
+      const stores = await this.prisma.store.findMany({ where: { ownerId } });
+      targetStoreIds = stores.map((s) => s.id);
+    }
+
+    const employees = await this.prisma.owner.findMany({
+      where: {
+        role: 'employee',
+        ...(targetStoreIds.length > 0 ? { storeId: { in: targetStoreIds } } : {}),
+      },
+      include: {
+        store: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    return employees.map((e) => ({
+      id: e.id,
+      name: e.name,
+      email: e.email,
+      whatsappNum: e.whatsappNum,
+      role: e.role,
+      storeId: e.storeId,
+      storeName: e.store?.name || 'Utama',
+      createdAt: e.createdAt,
+    }));
+  }
+
+  async deleteEmployee(id: string) {
+    const employee = await this.prisma.owner.findUnique({ where: { id } });
+    if (!employee || employee.role !== 'employee') {
+      throw new NotFoundException('Pegawai tidak ditemukan.');
+    }
+
+    await this.prisma.owner.delete({ where: { id } });
+    return { message: 'Pegawai berhasil dihapus.' };
   }
 }
