@@ -689,22 +689,27 @@ export class AiService {
           }
 
           for (const o of orders) {
-            const name = o.cashierName || 'Owner/Kasir';
             const sId = o.storeId;
+            const sName = storeNameMap.get(sId) || 'Toko Cabang';
+            
+            // Check if transaction was done by Owner
+            const rawName = o.cashierName ? o.cashierName.trim() : '';
+            const isOwner = !rawName || rawName.toLowerCase() === 'owner' || rawName.toLowerCase().startsWith('owner');
+            const displayName = isOwner ? `Owner (Cabang ${sName})` : rawName;
 
             // Total gabungan
-            if (!statsMap[name]) {
-              statsMap[name] = { cashierName: name, totalTransactions: 0, totalRevenue: 0, totalProfit: 0 };
+            if (!statsMap[displayName]) {
+              statsMap[displayName] = { cashierName: displayName, totalTransactions: 0, totalRevenue: 0, totalProfit: 0 };
             }
-            statsMap[name].totalTransactions += 1;
-            statsMap[name].totalRevenue += o.totalAmount;
-            statsMap[name].totalProfit += o.totalProfit;
+            statsMap[displayName].totalTransactions += 1;
+            statsMap[displayName].totalRevenue += o.totalAmount;
+            statsMap[displayName].totalProfit += o.totalProfit;
 
             // Breakdown per toko
             if (!storeMap[sId]) {
               storeMap[sId] = {
                 storeId: sId,
-                storeName: storeNameMap.get(sId) || 'Toko Cabang',
+                storeName: sName,
                 totalRevenue: 0,
                 totalOrders: 0,
                 cashiers: {}
@@ -713,12 +718,12 @@ export class AiService {
             storeMap[sId].totalRevenue += o.totalAmount;
             storeMap[sId].totalOrders += 1;
 
-            if (!storeMap[sId].cashiers[name]) {
-              storeMap[sId].cashiers[name] = { cashierName: name, totalTransactions: 0, totalRevenue: 0, totalProfit: 0 };
+            if (!storeMap[sId].cashiers[displayName]) {
+              storeMap[sId].cashiers[displayName] = { cashierName: displayName, totalTransactions: 0, totalRevenue: 0, totalProfit: 0 };
             }
-            storeMap[sId].cashiers[name].totalTransactions += 1;
-            storeMap[sId].cashiers[name].totalRevenue += o.totalAmount;
-            storeMap[sId].cashiers[name].totalProfit += o.totalProfit;
+            storeMap[sId].cashiers[displayName].totalTransactions += 1;
+            storeMap[sId].cashiers[displayName].totalRevenue += o.totalAmount;
+            storeMap[sId].cashiers[displayName].totalProfit += o.totalProfit;
           }
 
           const cashierKpis = Object.values(statsMap).map(item => {
@@ -745,17 +750,21 @@ export class AiService {
               storeId: s.storeId,
               storeName: s.storeName,
               totalRevenue: s.totalRevenue,
-              totalOrders: s.totalOrders,
+              totalOrdersInStore: s.totalOrders,
               cashierKpis: cashierList
             };
           });
 
           return {
             period,
+            grandTotalSummary: {
+              totalOrdersAllStores: orders.length,
+              totalRevenueAllStores: totalRevenue,
+            },
             totalStoreRevenue: totalRevenue,
             totalOrdersProcessed: orders.length,
-            overallCashierKpis: cashierKpis,
-            storeBreakdown
+            storeBreakdown,
+            overallCashierKpis: cashierKpis
           };
         }
 
@@ -835,7 +844,10 @@ Aturan penting:
 4. Pemilik/owner dapat memiliki beberapa cabang toko (outlet). Anda bisa mengambil data dari SEMUA cabang atau dari cabang tertentu saja dengan menyetel parameter 'allStores: true' or 'storeName' pada fungsi yang dipanggil. Tampilkan rincian (breakdown) per cabang jika pengguna meminta performa keseluruhan toko mereka.
 5. Jika pengguna menanyakan omzet seluruh toko atau cabangnya, Anda wajib menampilkan rincian (breakdown) omzet masing-masing toko satu per satu (termasuk yang bernilai Rp 0) di respon akhir Anda secara transparan.
 6. Jika pengguna mencari atau menanyakan stok suatu produk, dan nama produk di database (hasil pencarian/tool) mirip atau mendekati tetapi tidak sama persis (misal: pengguna mengetik "kopi abc kopi susu" sedangkan di database bernama "ABC Kopi Susu"), Anda WAJIB mengonfirmasi terlebih dahulu ke pengguna apakah benar "ABC Kopi Susu" yang mereka maksud sebelum membeberkan detail stoknya.
-7. Jika pengguna menanyakan KPI, performa, atau rekapitulasi pegawai/kasir (terutama jika disetel 'allStores: true' atau ditanyakan per cabang), Anda WAJIB menyajikan data breakdown performa & omzet pegawai masing-masing cabang toko secara TERPISAH (per section/tabel tiap cabang), disusul dengan rangkuman/peringkat keseluruhan.
+7. Jika pengguna menanyakan KPI, performa, atau rekapitulasi pegawai/kasir (terutama jika disetel 'allStores: true' atau ditanyakan per cabang):
+   - Anda WAJIB menyajikan **Grand Total Penjualan Seluruh Cabang** (berisi Total Jumlah Struk/Transaksi Gabungan dari semua cabang toko & Total Omset Gabungan Rp).
+   - Anda WAJIB menyajikan **Breakdown Per Cabang Toko secara TERPISAH** (menggunakan tabel/section khusus tiap cabang).
+   - Untuk setiap cabang toko, rincikan secara spesifik transaksi yang dibuat oleh masing-masing kasir/pegawai DAN transaksi yang dibuat oleh Owner di cabang tersebut (misal: "Owner (Cabang Jakarta): X transaksi, Rp Y"). JANGAN menggabungkan transaksi Owner seluruh cabang menjadi satu angka saja tanpa memecahnya per cabang toko.
 8. Prosedur Wajib Penambahan Produk Baru (createProduct):
    - Jika pengguna meminta untuk menambah produk baru (input produk baru), namun pengguna BELUM menyertakan barcode produk, Anda WAJIB menanyakan terlebih dahulu: "Apakah produk ini memiliki barcode fisik?"
    - Jika pengguna menjawab YA / memiliki barcode: Anda WAJIB memandu pengguna dengan pesan ramah: "Silakan pindai barcode produk Anda dengan menekan tombol **Scan Barcode** (ikon kamera/barcode) di **sudut bawah kiri kolom chat** ini." (JANGAN langsung memanggil fungsi createProduct sebelum barcode diberikan/di-scan).
