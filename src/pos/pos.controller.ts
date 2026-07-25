@@ -6,8 +6,8 @@ export class PosController {
   constructor(private posService: PosService) {}
 
   @Get('products/barcode/:barcode')
-  async getProductByBarcode(@Param('barcode') barcode: string) {
-    return this.posService.getProductByBarcode(barcode);
+  async getProductByBarcode(@Param('barcode') barcode: string, @Query('storeId') storeId?: string) {
+    return this.posService.getProductByBarcode(barcode, storeId);
   }
 
   @Get('products')
