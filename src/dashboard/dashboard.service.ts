@@ -242,27 +242,35 @@ export class DashboardService {
       },
     });
 
-    // Group and count quantities
-    const grouped: Record<string, { name: string; sold: number; price: number }> = {};
+    // Group and count quantities & prices
+    const grouped: Record<string, { name: string; quantity: number; price: number }> = {};
     items.forEach(i => {
-      if (!grouped[i.productId]) {
-        grouped[i.productId] = {
-          name: i.product.name,
-          sold: 0,
-          price: i.price,
+      const prodName = i.product?.name || (i as any).productName || 'Produk';
+      const key = i.productId || prodName;
+      const unitPrice = i.price || (i.product?.price ?? 0);
+      
+      if (!grouped[key]) {
+        grouped[key] = {
+          name: prodName,
+          quantity: 0,
+          price: unitPrice,
         };
       }
-      grouped[i.productId].sold += i.quantity;
+      grouped[key].quantity += i.quantity;
+      if (grouped[key].price === 0 && unitPrice > 0) {
+        grouped[key].price = unitPrice;
+      }
     });
 
-    // Convert to array and sort by sold quantity
     return Object.values(grouped)
-      .sort((a, b) => b.sold - a.sold)
+      .sort((a, b) => b.quantity - a.quantity)
       .slice(0, 4)
       .map(item => ({
         name: item.name,
-        sold: `${item.sold} terjual`,
-        price: `Rp ${item.price.toLocaleString('id-ID')}`,
+        quantity: item.quantity,
+        sold: `${item.quantity} Terjual`,
+        price: item.price,
+        revenue: item.price * item.quantity,
       }));
   }
 }
