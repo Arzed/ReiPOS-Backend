@@ -195,6 +195,7 @@ export class PosService {
     additionalStock?: number,
     price?: number,
     costPrice?: number,
+    discount?: number,
   ) {
     const product = await this.prisma.product.findFirst({
       where: { storeId, barcode },
@@ -207,6 +208,7 @@ export class PosService {
     const dataToUpdate: any = {};
     if (price !== undefined && price !== null) dataToUpdate.price = price;
     if (costPrice !== undefined && costPrice !== null) dataToUpdate.costPrice = costPrice;
+    if (discount !== undefined && discount !== null) dataToUpdate.discount = discount;
     if (additionalStock !== undefined && additionalStock !== null && additionalStock > 0) {
       dataToUpdate.stock = product.stock + additionalStock;
     }

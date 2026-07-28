@@ -55,6 +55,7 @@ export class PosController {
       additionalStock?: number;
       price?: number;
       costPrice?: number;
+      discount?: number;
     },
   ) {
     return this.posService.tambahStok(
@@ -63,6 +64,7 @@ export class PosController {
       body.additionalStock,
       body.price,
       body.costPrice,
+      body.discount,
     );
   }
 
