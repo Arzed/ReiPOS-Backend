@@ -9,43 +9,17 @@ dotenv.config();
 @Injectable()
 export class AiService {
   private openaiClient: OpenAI | null = null;
-  private geminiClient: OpenAI | null = null;
-  private deepseekClient: OpenAI | null = null;
 
   constructor(private prisma: PrismaService) {
     const openaiKey = process.env.OPENAI_API_KEY;
     const openaiBaseUrl = process.env.OPENAI_BASE_URL; // Optional custom endpoint
 
-    const geminiKey = process.env.GEMINI_API_KEY;
-    const geminiBaseUrl = process.env.GEMINI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta/openai/';
-
-    const deepseekKey = process.env.DEEPSEEK_API_KEY;
-    const deepseekBaseUrl = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com/v1';
-
-    console.log(
-      'AiService Constructor -> OpenAI Key:', openaiKey ? 'FOUND' : 'MISSING',
-      'Gemini Key:', geminiKey ? 'FOUND' : 'MISSING',
-      'DeepSeek Key:', deepseekKey ? 'FOUND' : 'MISSING'
-    );
+    console.log('AiService Constructor -> OpenAI Key:', openaiKey ? 'FOUND' : 'MISSING');
 
     if (openaiKey) {
       this.openaiClient = new OpenAI({
         apiKey: openaiKey,
         ...(openaiBaseUrl ? { baseURL: openaiBaseUrl } : {}),
-      });
-    }
-
-    if (geminiKey) {
-      this.geminiClient = new OpenAI({
-        apiKey: geminiKey,
-        baseURL: geminiBaseUrl,
-      });
-    }
-
-    if (deepseekKey) {
-      this.deepseekClient = new OpenAI({
-        apiKey: deepseekKey,
-        baseURL: deepseekBaseUrl,
       });
     }
   }
@@ -793,8 +767,8 @@ export class AiService {
 
   // Handle User Chat with Agent Loop
   async processMessage(storeId: string, userMessage: string, history: { role: 'user' | 'assistant' | 'system'; content: string }[] = [], skillId?: string, userRole?: string): Promise<string> {
-    if (!this.geminiClient && !this.deepseekClient) {
-      // Mock Response Mode if no API Key provided
+    if (!this.openaiClient) {
+      // Mock Response Mode if no OpenAI API Key provided
       return this.handleMockResponse(userMessage, skillId, userRole);
     }
 
@@ -889,67 +863,19 @@ Aturan penting:
         turns++;
         
         let response;
-        const openaiModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
-        const geminiModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
-        const deepseekModel = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+        const activeModel = process.env.OPENAI_MODEL || 'gpt-4o-mini';
 
-        let activeClient: OpenAI | null = this.openaiClient || this.geminiClient || this.deepseekClient;
-        let activeModel = this.openaiClient ? openaiModel : (this.geminiClient ? geminiModel : deepseekModel);
-
-        try {
-          if (!activeClient) {
-            throw new Error('No active AI clients initialized. Please check OPENAI_API_KEY, GEMINI_API_KEY, or DEEPSEEK_API_KEY.');
-          }
-          console.log(`Attempting AI call with model: ${activeModel}...`);
-          response = await activeClient.chat.completions.create({
-            model: activeModel,
-            messages,
-            tools: tools.length > 0 ? tools : undefined,
-            tool_choice: tools.length > 0 ? 'auto' : undefined,
-          });
-        } catch (primaryError: any) {
-          console.warn(`Primary AI client (${activeModel}) failed:`, primaryError.message || primaryError);
-
-          // Fallback sequence: OpenAI -> Gemini -> DeepSeek
-          let fallbackClient: OpenAI | null = null;
-          let fallbackModel = '';
-
-          if (activeClient === this.openaiClient) {
-            fallbackClient = this.geminiClient || this.deepseekClient;
-            fallbackModel = this.geminiClient ? geminiModel : deepseekModel;
-          } else if (activeClient === this.geminiClient) {
-            fallbackClient = this.deepseekClient;
-            fallbackModel = deepseekModel;
-          }
-
-          if (fallbackClient) {
-            console.log(`Falling back to alternative AI client (${fallbackModel})...`);
-            try {
-              response = await fallbackClient.chat.completions.create({
-                model: fallbackModel,
-                messages,
-                tools: tools.length > 0 ? tools : undefined,
-                tool_choice: tools.length > 0 ? 'auto' : undefined,
-              });
-            } catch (fallbackError: any) {
-              const errMsg = fallbackError.message || '';
-              if (errMsg.includes('supported API model names') || errMsg.includes('deepseek-chat')) {
-                const altModel = errMsg.includes('deepseek-v4-pro') ? 'deepseek-v4-pro' : 'deepseek-chat';
-                console.log(`Retrying fallback call with alternative model: ${altModel}...`);
-                response = await fallbackClient.chat.completions.create({
-                  model: altModel,
-                  messages,
-                  tools: tools.length > 0 ? tools : undefined,
-                  tool_choice: tools.length > 0 ? 'auto' : undefined,
-                });
-              } else {
-                throw fallbackError;
-              }
-            }
-          } else {
-            throw primaryError;
-          }
+        if (!this.openaiClient) {
+          throw new Error('OpenAI client is not initialized. Please set OPENAI_API_KEY in .env file.');
         }
+
+        console.log(`Attempting AI call with OpenAI model: ${activeModel}...`);
+        response = await this.openaiClient.chat.completions.create({
+          model: activeModel,
+          messages,
+          tools: tools.length > 0 ? tools : undefined,
+          tool_choice: tools.length > 0 ? 'auto' : undefined,
+        });
 
         const choice = response.choices[0];
         const message = choice.message;
