@@ -1024,7 +1024,7 @@ Aturan penting:
     if (text.includes('tambah') || text.includes('produk baru')) {
       return `${skillPrefix}Untuk menambah produk baru, silakan gunakan format:\n\`Nama: [Nama], Harga: [Harga], Stok: [Stok]\``;
     }
-    return `${skillPrefix}Saya mendeteksi pesan Anda: "${msg}"\n\nUntuk mengaktifkan asisten pintar, mohon isikan *GEMINI_API_KEY* di file *.env* proyek backend Anda.`;
+    return `${skillPrefix}Saya mendeteksi pesan Anda: "${msg}"\n\nUntuk mengaktifkan asisten pintar, mohon isikan *OPENAI_API_KEY* di file *.env* proyek backend Anda.`;
   }
 
   async getLowStockAnalysis(targetStoreIds: string[]) {
