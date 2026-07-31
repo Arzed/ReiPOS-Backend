@@ -875,7 +875,8 @@ Aturan penting:
           messages,
           tools: tools.length > 0 ? tools : undefined,
           tool_choice: tools.length > 0 ? 'auto' : undefined,
-        });
+          ...(tools.length > 0 ? { reasoning_effort: 'none' } : {}),
+        } as any);
 
         const choice = response.choices[0];
         const message = choice.message;
