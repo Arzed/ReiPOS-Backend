@@ -252,6 +252,49 @@ export class AiService {
           }));
         }
 
+        case 'lookupBarcode': {
+          const barcode = args.barcode ? args.barcode.trim() : '';
+          if (!barcode) {
+            return { found: false, message: 'Barcode tidak boleh kosong.' };
+          }
+
+          const urls = [
+            `https://world.openfoodfacts.net/api/v3.6/product/${barcode}.json`,
+            `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`,
+          ];
+
+          for (const url of urls) {
+            try {
+              const response = await fetch(url, {
+                headers: { 'User-Agent': 'ReiPOS - Android App' },
+              });
+              if (response.ok) {
+                const data = await response.json();
+                const isSuccess = data && (data.status === 1 || data.status === 'success' || data.status_verbose === 'product found' || data.result?.id === 'product_found');
+                if (isSuccess && data.product) {
+                  const p = data.product;
+                  const productName =
+                    p.product_name ||
+                    p.product_name_id ||
+                    p.product_name_en ||
+                    p.abbreviated_product_name ||
+                    null;
+                  if (productName && typeof productName === 'string' && productName.trim().length > 0) {
+                    return {
+                      barcode,
+                      found: true,
+                      productName: productName.trim(),
+                      brand: p.brands || null,
+                    };
+                  }
+                }
+              }
+            } catch (_) {}
+          }
+
+          return { barcode, found: false, productName: null, brand: null };
+        }
+
         case 'salesReport': {
           const period = args.period || 'today';
           const start = new Date();

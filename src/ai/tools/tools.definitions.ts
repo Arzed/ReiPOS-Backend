@@ -149,6 +149,20 @@ export function getAiToolsDefinitions(allowedTools?: string[]): OpenAI.Chat.Comp
         },
       },
     },
+    {
+      type: 'function',
+      function: {
+        name: 'lookupBarcode',
+        description: 'Mencari dan mengidentifikasi nama produk publik secara global berdasarkan barcode menggunakan database Open Food Facts API v3.6.',
+        parameters: {
+          type: 'object',
+          properties: {
+            barcode: { type: 'string', description: 'Kode barcode atau EAN/UPC produk yang dicari' },
+          },
+          required: ['barcode'],
+        },
+      },
+    },
   ];
 
   if (!allowedTools || allowedTools.length === 0) {
