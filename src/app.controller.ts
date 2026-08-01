@@ -5,8 +5,14 @@ import { AppService } from './app.service';
 export class AppController {
   constructor(private readonly appService: AppService) {}
 
-  @Get()
-  getHello(): string {
-    return this.appService.getHello();
+  @Get('app/version')
+  getAppVersion() {
+    return {
+      latestVersion: '1.1.0',
+      minRequiredVersion: '1.0.0',
+      updateUrl: 'https://reipos.id/download/app-latest.apk',
+      releaseNotes: 'Fitur baru laporan performa kasir dan stabilitas transaksi.',
+      forceUpdate: false,
+    };
   }
 }

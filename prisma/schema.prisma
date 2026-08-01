@@ -1,96 +1,96 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
 datasource db {
   provider  = "postgresql"
   url       = env("DATABASE_URL")
   directUrl = env("DATABASE_URL_UNPOOLED")
 }
 
-generator client {
-  provider = "prisma-client-js"
-}
-
 model Owner {
-  id            String         @id @default(uuid())
-  name          String
-  email         String         @unique
-  password      String
-  pin           String
-  whatsappNum   String         @unique // Nomor WA pemilik yang terdaftar
-  role          String         @default("owner") // "owner" atau "employee"
-  storeId       String?        // Toko tempat pegawai ditempatkan
-  store         Store?         @relation("StoreEmployees", fields: [storeId], references: [id], onDelete: Cascade)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  stores        Store[]        @relation("StoreOwner")
-  cashierOrders Order[]        @relation("OwnerCashierOrders")
+  id             String         @id @default(uuid())
+  name           String
+  email          String         @unique
+  password       String
+  pin            String         @default("123456")
+  whatsappNum    String         @unique
+  role           String         @default("owner")
+  storeId        String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  cashierOrders  Order[]        @relation("OwnerCashierOrders")
+  store          Store?         @relation("StoreEmployees", fields: [storeId], references: [id], onDelete: Cascade)
   startingCashes StartingCash[]
+  stores         Store[]        @relation("StoreOwner")
 }
 
 model Store {
   id             String         @id @default(uuid())
   ownerId        String
-  owner          Owner          @relation("StoreOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   name           String
   location       String?
-  target         Float          @default(0.0) // Target penjualan bulanan
+  target         Float          @default(0.0)
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
-  products       Product[]
-  orders         Order[]
   taxActive      Boolean        @default(true)
   taxRate        Float          @default(10.0)
+  orders         Order[]
   employees      Owner[]        @relation("StoreEmployees")
+  products       Product[]
   startingCashes StartingCash[]
+  owner          Owner          @relation("StoreOwner", fields: [ownerId], references: [id], onDelete: Cascade)
 }
 
 model Product {
-  id                String      @id @default(uuid())
-  storeId           String
-  store             Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
-  name              String
-  category          String?     // Kategori produk (e.g. Kopi & Teh, Minuman, Sembako)
-  barcode           String?     // nullable, unique per store (see @@unique below)
-  price             Float
-  costPrice         Float       // Harga modal untuk hitung profit
-  discount          Float       @default(0) // Diskon produk (persen atau nominal)
-  stock             Int
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
-  orderItems        OrderItem[]
+  id         String      @id @default(uuid())
+  storeId    String
+  name       String
+  category   String?
+  barcode    String?
+  price      Float
+  costPrice  Float
+  discount   Float       @default(0)
+  stock      Int
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  orderItems OrderItem[]
+  store      Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
-  @@unique([storeId, barcode])  // barcode unik per-toko (bukan global)
+  @@unique([storeId, barcode])
 }
 
 model Order {
   id            String      @id @default(uuid())
   storeId       String
-  store         Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
   totalAmount   Float
   totalProfit   Float
-  paymentStatus String      // PENDING, PAID, FAILED
-  paymentMethod String      // QRIS, CASH
-  cashierId     String?     // ID pegawai/owner yang melayani
-  cashier       Owner?      @relation("OwnerCashierOrders", fields: [cashierId], references: [id], onDelete: SetNull)
-  cashierName   String?     // Nama pegawai/owner yang melayani
+  paymentStatus String
+  paymentMethod String
+  cashierId     String?
+  cashierName   String?
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
+  cashier       Owner?      @relation("OwnerCashierOrders", fields: [cashierId], references: [id])
+  store         Store       @relation(fields: [storeId], references: [id], onDelete: Cascade)
   items         OrderItem[]
 }
 
 model OrderItem {
-  id        String   @id @default(uuid())
+  id        String  @id @default(uuid())
   orderId   String
-  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   productId String
-  product   Product  @relation(fields: [productId], references: [id])
   quantity  Int
-  price     Float    // Harga jual saat transaksi dilakukan
+  price     Float
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product   Product @relation(fields: [productId], references: [id])
 }
 
 model ChatMessage {
   id        String   @id @default(uuid())
   phone     String
   skillId   String?
-  role      String   // user, assistant, system
+  role      String
   content   String
   createdAt DateTime @default(now())
 }
@@ -98,14 +98,14 @@ model ChatMessage {
 model StartingCash {
   id            String   @id @default(uuid())
   storeId       String
-  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
   amount        Float
   createdById   String
-  createdBy     Owner    @relation(fields: [createdById], references: [id], onDelete: Cascade)
   createdByName String
-  date          String   // Format YYYY-MM-DD (unique per store per day)
+  date          String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  createdBy     Owner    @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  store         Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
 
   @@unique([storeId, date])
 }

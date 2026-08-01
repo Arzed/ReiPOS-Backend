@@ -15,28 +15,24 @@ function randDate(start: Date, end: Date): Date {
 }
 
 async function main() {
-  // ─── 1. Clean database ─────────────────────────────────────────────────────
-  await prisma.orderItem.deleteMany({});
-  await prisma.order.deleteMany({});
-  await (prisma as any).startingCash.deleteMany({});
-  await (prisma as any).chatMessage.deleteMany({});
-  await prisma.product.deleteMany({});
-  await prisma.store.deleteMany({});
-  await prisma.owner.deleteMany({});
-  console.log('✓ Database cleared');
-
-  // ─── 2. Create Owner ───────────────────────────────────────────────────────
+  // ─── 1. Create/Update Owner (Upsert to prevent overwriting/deleting real users) ───
   const hashedPassword = await bcrypt.hash('password123', 10);
-  const owner = await prisma.owner.create({
-    data: {
+  const hashedPin = await bcrypt.hash('123456', 10);
+  
+  const owner = await prisma.owner.upsert({
+    where: { email: 'owner@toko.com' },
+    update: {
+      pin: hashedPin,
+    },
+    create: {
       name: 'Budi Santoso (Owner)',
       email: 'owner@toko.com',
       password: hashedPassword,
-      pin: '123456',
+      pin: hashedPin,
       whatsappNum: '6281234567890',
     },
   });
-  console.log(`✓ Owner created: ${owner.name}`);
+  console.log(`✓ Owner processed: ${owner.name}`);
 
   // ─── 3. Create 3 Stores ────────────────────────────────────────────────────
   const storesData = [
@@ -58,7 +54,7 @@ async function main() {
       name: 'Andi Wijaya',
       email: 'pegawai.jakarta@toko.com',
       password: employeeHashedPassword,
-      pin: '111111',
+      pin: await bcrypt.hash('111111', 10),
       whatsappNum: '6289999999001',
       role: 'employee',
       storeId: stores[0].id,
@@ -70,7 +66,7 @@ async function main() {
       name: 'Budi Staff',
       email: 'pegawai.bandung@toko.com',
       password: employeeHashedPassword,
-      pin: '222222',
+      pin: await bcrypt.hash('222222', 10),
       whatsappNum: '6289999999002',
       role: 'employee',
       storeId: stores[1].id,
@@ -82,7 +78,7 @@ async function main() {
       name: 'Siti Aminah',
       email: 'pegawai.surabaya@toko.com',
       password: employeeHashedPassword,
-      pin: '333333',
+      pin: await bcrypt.hash('333333', 10),
       whatsappNum: '6289999999003',
       role: 'employee',
       storeId: stores[2].id,
