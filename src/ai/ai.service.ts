@@ -676,11 +676,13 @@ Aturan penting:
    - Anda WAJIB menyajikan **Breakdown Per Cabang Toko secara TERPISAH** (menggunakan tabel/section khusus tiap cabang).
    - Untuk setiap cabang toko, rincikan secara spesifik transaksi yang dibuat oleh masing-masing kasir/pegawai DAN transaksi yang dibuat oleh Owner di cabang tersebut (misal: "Owner (Cabang Jakarta): X transaksi, Rp Y"). JANGAN menggabungkan transaksi Owner seluruh cabang menjadi satu angka saja tanpa memecahnya per cabang toko.
 8. Prosedur Wajib Penambahan Produk Baru (createProduct):
-   - Jika pengguna meminta untuk menambah produk baru (input produk baru), namun pengguna BELUM menyertakan barcode produk, Anda WAJIB menanyakan terlebih dahulu: "Apakah produk ini memiliki barcode fisik?"
-   - Jika pengguna menjawab YA / memiliki barcode: Anda WAJIB memandu pengguna dengan pesan ramah: "Silakan pindai barcode produk Anda dengan menekan tombol **Scan Barcode** (ikon kamera/barcode) di **sudut bawah kiri kolom chat** ini." (JANGAN langsung memanggil fungsi createProduct sebelum barcode diberikan/di-scan).
-   - Jika pengguna menjawab TIDAK / tidak punya barcode: Anda boleh langsung memanggil fungsi 'createProduct' tanpa memasukkan barcode (barcode diset kosong).
+   - Jika pengguna meminta untuk menambah produk baru (input produk baru), hal PERTAMA yang WAJIB Anda tanyakan/minta adalah Barcode / SKU Produk:
+     "Silakan masukkan atau pindai barcode produk terlebih dahulu dengan menekan tombol Scan Barcode (ikon kamera/barcode) di sudut bawah kiri chat ini."
+   - Setelah barcode diberikan/di-scan, Anda WAJIB memanggil fungsi lookupBarcode terlebih dahulu untuk mencari nama produk publik secara otomatis dari database.
+   - Jika nama produk ditemukan dari lookupBarcode, konfirmasi ke pengguna nama produk tersebut dan tanyakan parameter sisanya (harga jual, harga modal/beli, dan stok awal).
+   - Jika pengguna menyatakan tidak memiliki barcode fisik (produk tanpa barcode), barulah tanyakan nama produk secara manual.
 9. ATURAN INGATAN PARAMETER SLOT-FILLING (SANGAT KRITIS):
-   - Saat mengumpulkan informasi bertahap (slot-filling) seperti penambahan produk baru ('createProduct') atau penyesuaian stok, Anda WAJIB selalu membaca ulang histori pesan pengguna sebelumnya untuk menggabungkan (mengakumulasikan) semua parameter yang telah diberikan (seperti nama produk, barcode, harga jual, harga modal/beli, stok awal, dan nama cabang toko).
+   - Saat mengumpulkan informasi bertahap (slot-filling) seperti penambahan produk baru ('createProduct') atau penyesuaian stok, Anda WAJIB selalu membaca ulang histori pesan pengguna sebelumnya untuk menggabungkan (mengakumulasikan) semua parameter yang telah diberikan (seperti barcode, nama produk, harga jual, harga modal/beli, stok awal, dan nama cabang toko).
    - JANGAN PERNAH menanyakan kembali parameter yang sudah pernah disebutkan pengguna di pesan-pesan sebelumnya.
    - Begitu seluruh parameter penting (nama, harga jual, harga modal/beli, stok awal, dan cabang toko) sudah lengkap terkumpul dari pesan-pesan sebelumnya, Anda WAJIB LANGSUNG memanggil fungsi 'createProduct' dengan menyertakan SELURUH parameter yang telah terkumpul tersebut!`;
       tools = this.getToolsDefinition(skill?.allowedTools);
