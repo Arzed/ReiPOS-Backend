@@ -3,6 +3,7 @@ import { PrismaService } from '../prisma.service';
 import * as QRCode from 'qrcode';
 import * as bcrypt from 'bcrypt';
 import { randomInt } from 'crypto';
+import axios from 'axios';
 
 @Injectable()
 export class PosService {
@@ -16,6 +17,42 @@ export class PosService {
       throw new NotFoundException(`Produk dengan barcode ${barcode} tidak ditemukan`);
     }
     return product;
+  }
+
+  async lookupBarcode(barcode: string) {
+    try {
+      const response = await axios.get(`https://world.openfoodfacts.net/api/v3.6/product/${barcode}.json`, {
+        timeout: 5000,
+        headers: { 'User-Agent': 'ReiPOS - Android App' },
+      });
+
+      if (response.data && response.data.status === 1 && response.data.product) {
+        const p = response.data.product;
+        const productName =
+          p.product_name_id ||
+          p.product_name ||
+          p.product_name_en ||
+          p.abbreviated_product_name ||
+          null;
+
+        if (productName) {
+          return {
+            barcode,
+            found: true,
+            productName: productName.trim(),
+            brand: p.brands || null,
+          };
+        }
+      }
+    } catch (e) {
+      // Ignore network / API lookup errors gracefully
+    }
+    return {
+      barcode,
+      found: false,
+      productName: null,
+      brand: null,
+    };
   }
 
   async getAllProducts(storeId?: string | string[]) {

@@ -33,6 +33,13 @@ export class PosController {
     private tenantService: TenantService,
   ) {}
 
+  @Get('products/lookup-barcode/:barcode')
+  async lookupBarcode(
+    @Param('barcode') barcode: string,
+  ) {
+    return this.posService.lookupBarcode(barcode);
+  }
+
   @Get('products/barcode/:barcode')
   async getProductByBarcode(
     @CurrentUser() user: UserTokenPayload,
