@@ -4,8 +4,8 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 
 // In-memory app version state (fallback configuration)
 let appVersionState = {
-  latestVersion: '1.0.2',
-  minRequiredVersion: '1.0.2',
+  latestVersion: '1.0.3',
+  minRequiredVersion: '1.0.3',
   updateUrl: 'https://is3.cloudhost.id/zone-mart/app-release.apk',
   releaseNotes: 'Fitur baru laporan performa kasir dan peningkatan performa sistem.',
   forceUpdate: false,
