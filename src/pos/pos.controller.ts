@@ -71,8 +71,8 @@ export class PosController {
       dto.storeId,
       dto.items,
       dto.paymentMethod,
-      dto.cashierId || user.id,
-      dto.cashierName || user.name,
+      dto.cashierId || user.ownerId,
+      dto.cashierName,
       dto.cashReceived,
       dto.cashChange,
     );
