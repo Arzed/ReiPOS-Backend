@@ -1,7 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException, ConflictException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 import * as QRCode from 'qrcode';
 import * as bcrypt from 'bcrypt';
+import { randomInt } from 'crypto';
 
 @Injectable()
 export class PosService {
@@ -17,9 +18,17 @@ export class PosService {
     return product;
   }
 
-  async getAllProducts(storeId?: string) {
+  async getAllProducts(storeId?: string | string[]) {
+    if (!storeId) {
+      return [];
+    }
+    if (Array.isArray(storeId)) {
+      return this.prisma.product.findMany({
+        where: { storeId: { in: storeId } },
+      });
+    }
     return this.prisma.product.findMany({
-      where: storeId ? { storeId } : undefined,
+      where: { storeId },
     });
   }
 
@@ -51,8 +60,8 @@ export class PosService {
       const product = await this.prisma.product.findUnique({
         where: { id: item.productId },
       });
-      if (!product) {
-        throw new NotFoundException(`Product ID ${item.productId} not found`);
+      if (!product || product.storeId !== storeId) {
+        throw new NotFoundException(`Product ID ${item.productId} not found in this store`);
       }
       if (product.stock < item.quantity) {
         throw new BadRequestException(`Insufficient stock for product ${product.name}. Available: ${product.stock}, Requested: ${item.quantity}`);
@@ -487,7 +496,9 @@ export class PosService {
       throw new ConflictException('Nomor WhatsApp atau Email sudah terdaftar.');
     }
 
+    const rawPin = pin || randomInt(100000, 999999).toString();
     const hashedPassword = await bcrypt.hash(password, 10);
+    const employeePin = await bcrypt.hash(rawPin, 10);
 
     const employee = await this.prisma.owner.create({
       data: {
@@ -495,7 +506,7 @@ export class PosService {
         email,
         password: hashedPassword,
         whatsappNum: cleanWhatsapp,
-        pin: pin || '123456',
+        pin: employeePin,
         role: 'employee',
         storeId,
       },
@@ -506,6 +517,7 @@ export class PosService {
 
     return {
       message: 'Pegawai berhasil ditambahkan.',
+      initialPin: rawPin,
       employee: {
         id: employee.id,
         name: employee.name,
@@ -551,10 +563,21 @@ export class PosService {
     }));
   }
 
-  async deleteEmployee(id: string) {
-    const employee = await this.prisma.owner.findUnique({ where: { id } });
+  async getOrderById(id: string) {
+    return this.prisma.order.findUnique({ where: { id } });
+  }
+
+  async deleteEmployee(id: string, ownerId: string) {
+    const employee = await this.prisma.owner.findUnique({
+      where: { id },
+      include: { store: true },
+    });
     if (!employee || employee.role !== 'employee') {
       throw new NotFoundException('Pegawai tidak ditemukan.');
+    }
+
+    if (employee.store && employee.store.ownerId !== ownerId) {
+      throw new ForbiddenException('Anda tidak berhak menghapus pegawai cabang toko ini.');
     }
 
     await this.prisma.owner.delete({ where: { id } });

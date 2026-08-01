@@ -3,6 +3,8 @@ import { PrismaService } from '../prisma.service';
 import OpenAI from 'openai';
 import * as dotenv from 'dotenv';
 import { AI_SKILLS } from './skills.config';
+import { getAiToolsDefinitions } from './tools/tools.definitions';
+import { MOBILE_APP_DESCRIPTION } from './prompts/mobile-layout.const';
 
 dotenv.config();
 
@@ -25,197 +27,7 @@ export class AiService {
   }
 
   private getToolsDefinition(allowedTools?: string[]): OpenAI.Chat.Completions.ChatCompletionTool[] {
-    const allTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
-      {
-        type: 'function',
-        function: {
-          name: 'getRevenue',
-          description: 'Mengambil total omzet/pendapatan dalam rentang tanggal tertentu.',
-          parameters: {
-            type: 'object',
-            properties: {
-              startDate: { type: 'string', description: 'Format ISO (YYYY-MM-DD)' },
-              endDate: { type: 'string', description: 'Format ISO (YYYY-MM-DD)' },
-              allStores: { type: 'boolean', description: 'Ambil omzet dari semua cabang toko milik Owner' },
-              storeName: { type: 'string', description: 'Nama cabang toko tertentu (misal: Jakarta, Bandung)' },
-            },
-          },
-        },
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'getOrders',
-          description: 'Mengambil pesanan terbaru.',
-          parameters: {
-            type: 'object',
-            properties: {
-              limit: { type: 'number', description: 'Jumlah pesanan maksimal yang diambil (default 5)' },
-              allStores: { type: 'boolean', description: 'Ambil pesanan dari semua cabang toko milik Owner' },
-              storeName: { type: 'string', description: 'Nama cabang toko tertentu (misal: Jakarta, Bandung)' },
-            },
-          },
-        },
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'createProduct',
-          description: 'Menambahkan produk baru ke toko. Sebelum memanggil fungsi ini, jika pengguna belum memberikan barcode, tanyakan dulu apakah produk memiliki barcode dan pandu pengguna untuk menekan tombol scan di bawah kiri kolom chat.',
-          parameters: {
-            type: 'object',
-            properties: {
-              name: { type: 'string', description: 'Nama produk' },
-              price: { type: 'number', description: 'Harga jual produk' },
-              costPrice: { type: 'number', description: 'Harga modal/beli produk' },
-              stock: { type: 'number', description: 'Stok awal produk' },
-              barcode: { type: 'string', description: 'Barcode atau SKU produk (kosongkan jika produk tidak memiliki barcode)' },
-              storeName: { type: 'string', description: 'Nama cabang toko tempat produk akan ditambahkan (misal: Jakarta, Bandung)' },
-            },
-            required: ['name', 'price', 'costPrice', 'stock', 'storeName'],
-          },
-        },
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'updateStock',
-          description: 'Memperbarui stok produk yang sudah ada.',
-          parameters: {
-            type: 'object',
-            properties: {
-              barcodeOrId: { type: 'string', description: 'Barcode atau ID dari produk' },
-              stock: { type: 'number', description: 'Jumlah stok baru' },
-            },
-            required: ['barcodeOrId', 'stock'],
-          },
-        },
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'deleteProduct',
-          description: 'Menghapus produk dari toko.',
-          parameters: {
-            type: 'object',
-            properties: {
-              barcodeOrId: { type: 'string', description: 'Barcode atau ID produk yang ingin dihapus' },
-            },
-            required: ['barcodeOrId'],
-          },
-        },
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'lowStock',
-          description: 'Mengecek produk yang memiliki stok tipis (di bawah batas minimum threshold).',
-          parameters: {
-            type: 'object',
-            properties: {
-              allStores: { type: 'boolean', description: 'Cek stok tipis dari semua cabang toko milik Owner' },
-              storeName: { type: 'string', description: 'Nama cabang toko tertentu (misal: Jakarta, Bandung)' },
-            },
-          },
-        },
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'salesReport',
-          description: 'Menyusun laporan penjualan ringkas harian atau mingguan.',
-          parameters: {
-            type: 'object',
-            properties: {
-              period: { type: 'string', enum: ['today', 'yesterday', 'weekly'], description: 'Periode laporan' },
-              allStores: { type: 'boolean', description: 'Susun laporan dari semua cabang toko milik Owner' },
-              storeName: { type: 'string', description: 'Nama cabang toko tertentu (misal: Jakarta, Bandung)' },
-            },
-          },
-        },
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'profitReport',
-          description: 'Menyusun laporan keuntungan/profit bersih.',
-          parameters: {
-            type: 'object',
-            properties: {
-              period: { type: 'string', enum: ['today', 'yesterday', 'weekly'], description: 'Periode laporan' },
-              allStores: { type: 'boolean', description: 'Susun laporan dari semua cabang toko milik Owner' },
-              storeName: { type: 'string', description: 'Nama cabang toko tertentu (misal: Jakarta, Bandung)' },
-            },
-          },
-        },
-      },
-      {
-        type: 'function',
-        function: {
-          name: 'getProduct',
-          description: 'Mencari informasi produk atau menampilkan semua daftar produk dari cabang toko tertentu.',
-          parameters: {
-            type: 'object',
-            properties: {
-              nameQuery: { type: 'string', description: 'Nama produk yang dicari (opsional, jika kosong menampilkan seluruh produk)' },
-              barcode: { type: 'string', description: 'Barcode produk (opsional)' },
-              storeName: { type: 'string', description: 'Nama cabang toko tertentu (misal: Jakarta, Bandung)' },
-            },
-          },
-        },
-      },
-    ];
-
-    // Add missing forecastSales tool
-    allTools.push({
-      type: 'function',
-      function: {
-        name: 'forecastSales',
-        description: 'Memprediksi sisa hari stok produk akan habis berdasarkan rata-rata penjualan 7 hari terakhir.',
-        parameters: {
-          type: 'object',
-          properties: {
-            barcodeOrId: { type: 'string', description: 'Barcode atau ID produk yang ingin diprediksi' },
-          },
-          required: ['barcodeOrId'],
-        },
-      },
-    });
-
-    allTools.push({
-      type: 'function',
-      function: {
-        name: 'checkMonthlyTarget',
-        description: 'Mengecek status pencapaian target bulanan dan saran penjualan produk dengan profit/permintaan tinggi.',
-        parameters: {
-          type: 'object',
-          properties: {
-            storeName: { type: 'string', description: 'Nama cabang toko tertentu (misal: Jakarta, Bandung)' },
-          },
-        },
-      },
-    });
-
-    allTools.push({
-      type: 'function',
-      function: {
-        name: 'getEmployeeKPI',
-        description: 'Menganalisis KPI dan performa penjualan masing-masing pegawai/kasir (omzet, jumlah transaksi, rata-rata nominal transaksi, dan kontribusi %).',
-        parameters: {
-          type: 'object',
-          properties: {
-            period: { type: 'string', enum: ['today', 'weekly', 'monthly'], description: 'Periode analisis (default monthly)' },
-            storeName: { type: 'string', description: 'Nama cabang toko tertentu (misal: Jakarta, Bandung)' },
-            allStores: { type: 'boolean', description: 'Ambil KPI pegawai dari semua cabang toko milik Owner' },
-          },
-        },
-      },
-    });
-
-    if (allowedTools) {
-      return allTools.filter(t => allowedTools.includes((t as any).function?.name));
-    }
-    return allTools;
+    return getAiToolsDefinitions(allowedTools);
   }
 
   // Execution Logic for each function
@@ -783,25 +595,7 @@ export class AiService {
     let systemPrompt = '';
     let tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [];
 
-    // Deskripsi Layout & Navigasi Aplikasi Mobile ReiPOS
-    const mobileAppDescription = `[Informasi Layout Aplikasi Mobile ReiPOS]:
-- Aplikasi menggunakan Bottom Navigation Bar dengan 4 tab utama (untuk Owner):
-  1. Tab "Ringkasan" (Dashboard): Menampilkan grafik performa toko, warning stok menipis, persentase pencapaian target bulanan, omzet, dan laba bersih.
-  2. Tab "Kasir" (POS): Tempat mencatat transaksi. Ada search bar produk, tombol scan barcode kamera (kanan kolom search), banner "Uang Modal Hari Ini" di bagian atas (hanya untuk Owner/Leader), dan grid produk. Di bagian bawah muncul floating bar "Lihat Keranjang" yang jika diketuk akan membuka sheet pembayaran (bisa pilih QRIS, Tunai, atau Transfer Bank).
-  3. Tab "Inventaris": Menampilkan list katalog barang, status sisa stok, dan tombol tambah produk baru.
-  4. Tab "Riwayat": Menampilkan list transaksi penjualan yang dikelompokkan per hari. Menampilkan ID transaksi, nama kasir/staf yang melayani, metode pembayaran, total transaksi, dan detail barang.
-- Header Aplikasi (App Header) di bagian atas setiap halaman:
-  - Sisi Kiri: Dropdown pilihan Cabang Outlet.
-  - Sisi Kanan: Pilihan ikon "Tanya AI" (membuka halaman AiSelector untuk memilih spesialis asisten), ikon "Lonceng" (notifikasi), dan ikon "Gerigi" (Pengaturan).
-- Halaman Chat AI (Tanya AI):
-  - Di bagian bawah layar percakapan terdapat kolom input teks.
-  - Di sudut bawah kiri kolom chat (sebelah kiri input teks), terdapat tombol **Scan Barcode** (ikon kamera/barcode). Jika ditap, kamera scanner barcode akan terbuka untuk memindai barcode fisik produk dan langsung memasukkannya ke dalam percakapan chat.
-- Halaman Pengaturan (Settings):
-  - Owner/Leader: Mengelola Langganan Premium, Outlet & Cabang (input target bulanan cabang), Pengguna & Role (karyawan), Printer POS Bluetooth, Threshold batas stok menipis, Kunci PIN keamanan, Pajak PPN, dan Keluar Akun.
-  - Pegawai (Employee): Hanya menampilkan Pengaturan Printer POS, Bantuan CS WhatsApp, Tentang Platform, dan Keluar Akun.
-- Hak Akses Role Pegawai (Employee):
-  - Pegawai hanya bisa mengakses Tab "Kasir" dan "Inventaris" pada bottom nav bar (Tab "Ringkasan" dan "Riwayat" disembunyikan).
-  - Pegawai tidak bisa mengakses tombol Chat AI jika role dibatasi (namun saat ini dibolehkan untuk panduan operasional saja).`;
+    const mobileAppDescription = MOBILE_APP_DESCRIPTION;
 
     if (isEmployee) {
       systemPrompt = `Anda adalah AI Assistant Panduan Aplikasi Toko. Tugas Anda HANYA menjawab pertanyaan seputar panduan cara menggunakan aplikasi mobile Toko ReiPOS berdasarkan deskripsi layout berikut.
@@ -908,9 +702,14 @@ Aturan penting:
       }
 
       return 'Sesi percakapan AI melebihi batas pemrosesan.';
-    } catch (error) {
-      console.error('DeepSeek API Call Error:', error);
-      return `Maaf, terjadi gangguan saat menghubungi asisten AI (DeepSeek Error: ${error.message}). Silakan periksa koneksi atau API Key Anda.`;
+    } catch (error: any) {
+      const providerName = process.env.OPENAI_BASE_URL?.includes('deepseek')
+        ? 'DeepSeek'
+        : process.env.OPENAI_BASE_URL?.includes('googleapis')
+        ? 'Gemini'
+        : 'OpenAI';
+      console.error(`[${providerName} API Call Error]:`, error);
+      return `Maaf, terjadi gangguan saat menghubungi asisten AI (${providerName} Error: ${error?.message || error}). Silakan periksa koneksi atau API Key Anda.`;
     }
   }
 

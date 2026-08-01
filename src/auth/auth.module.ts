@@ -10,9 +10,17 @@ import { JwtStrategy } from './jwt.strategy';
   imports: [
     PrismaModule,
     PassportModule.register({ defaultStrategy: 'jwt' }),
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'super_secret_key_123',
-      signOptions: { expiresIn: '7d' }, // Token valid for 7 days
+    JwtModule.registerAsync({
+      useFactory: () => {
+        const secret = process.env.JWT_SECRET;
+        if (!secret) {
+          throw new Error('FATAL: JWT_SECRET environment variable is missing.');
+        }
+        return {
+          secret,
+          signOptions: { expiresIn: '7d' },
+        };
+      },
     }),
   ],
   controllers: [AuthController],

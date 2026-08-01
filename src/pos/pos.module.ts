@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { PosController } from './pos.controller';
 import { PosService } from './pos.service';
+import { TenantService } from '../common/auth/tenant.service';
 
 @Module({
   controllers: [PosController],
-  providers: [PosService],
-  exports: [PosService],
+  providers: [PosService, TenantService],
+  exports: [PosService, TenantService],
 })
 export class PosModule {}

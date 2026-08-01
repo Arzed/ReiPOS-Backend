@@ -1,169 +1,221 @@
-import { Controller, Get, Post, Delete, Body, Param, Query } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
 import { PosService } from './pos.service';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { TenantService } from '../common/auth/tenant.service';
+import type { UserTokenPayload } from '../common/auth/tenant.service';
+import {
+  CreateOrderDto,
+  TambahStokDto,
+  CreateProductDto,
+  UpdateTaxDto,
+  UpdateTargetDto,
+  StartingCashDto,
+  CreateEmployeeDto,
+} from './dto/pos.dto';
 
+@UseGuards(JwtAuthGuard)
 @Controller('pos')
 export class PosController {
-  constructor(private posService: PosService) {}
+  constructor(
+    private posService: PosService,
+    private tenantService: TenantService,
+  ) {}
 
   @Get('products/barcode/:barcode')
-  async getProductByBarcode(@Param('barcode') barcode: string, @Query('storeId') storeId?: string) {
+  async getProductByBarcode(
+    @CurrentUser() user: UserTokenPayload,
+    @Param('barcode') barcode: string,
+    @Query('storeId') storeId?: string,
+  ) {
+    if (storeId) {
+      await this.tenantService.assertStoreAccess(user, storeId);
+    }
     return this.posService.getProductByBarcode(barcode, storeId);
   }
 
   @Get('products')
-  async getAllProducts(@Query('storeId') storeId?: string) {
-    return this.posService.getAllProducts(storeId);
+  async getAllProducts(
+    @CurrentUser() user: UserTokenPayload,
+    @Query('storeId') storeId?: string,
+  ) {
+    const targetStoreIds = await this.tenantService.getAuthorizedStoreIds(user, storeId);
+    return this.posService.getAllProducts(targetStoreIds);
   }
 
   @Post('orders')
   async createOrder(
-    @Body() body: {
-      storeId: string;
-      items: { productId: string; quantity: number }[];
-      paymentMethod?: string;
-      cashierId?: string;
-      cashierName?: string;
-    },
+    @CurrentUser() user: UserTokenPayload,
+    @Body() dto: CreateOrderDto,
   ) {
+    await this.tenantService.assertStoreAccess(user, dto.storeId);
     return this.posService.createOrder(
-      body.storeId,
-      body.items,
-      body.paymentMethod,
-      body.cashierId,
-      body.cashierName,
+      dto.storeId,
+      dto.items,
+      dto.paymentMethod,
+      dto.cashierId || user.ownerId,
+      dto.cashierName,
     );
   }
 
   @Get('orders')
   async getOrders(
+    @CurrentUser() user: UserTokenPayload,
     @Query('storeId') storeId?: string,
-    @Query('ownerId') ownerId?: string,
   ) {
-    return this.posService.getOrders(storeId, ownerId);
+    if (storeId) {
+      await this.tenantService.assertStoreAccess(user, storeId);
+      return this.posService.getOrders(storeId, user.ownerId);
+    }
+    return this.posService.getOrders(undefined, user.ownerId);
   }
 
   @Post('orders/:id/confirm-payment')
-  async confirmPayment(@Param('id') id: string) {
+  async confirmPayment(
+    @CurrentUser() user: UserTokenPayload,
+    @Param('id') id: string,
+  ) {
+    const order = await this.posService.getOrderById(id);
+    if (!order) {
+      throw new NotFoundException('Order tidak ditemukan');
+    }
+    await this.tenantService.assertStoreAccess(user, order.storeId);
     return this.posService.confirmPayment(id);
   }
 
   @Post('products/tambah-stok')
   async tambahStok(
-    @Body() body: {
-      storeId: string;
-      barcode: string;
-      additionalStock?: number;
-      price?: number;
-      costPrice?: number;
-      discount?: number;
-    },
+    @CurrentUser() user: UserTokenPayload,
+    @Body() dto: TambahStokDto,
   ) {
+    await this.tenantService.assertStoreAccess(user, dto.storeId);
     return this.posService.tambahStok(
-      body.storeId,
-      body.barcode,
-      body.additionalStock,
-      body.price,
-      body.costPrice,
-      body.discount,
+      dto.storeId,
+      dto.barcode,
+      dto.additionalStock,
+      dto.price,
+      dto.costPrice,
+      dto.discount,
     );
   }
 
   @Post('products')
   async createProduct(
-    @Body() body: {
-      storeId: string;
-      name: string;
-      barcode?: string | null;
-      price: number;
-      costPrice?: number;
-      discount?: number;
-      stock: number;
-    },
+    @CurrentUser() user: UserTokenPayload,
+    @Body() dto: CreateProductDto,
   ) {
-    return this.posService.createProduct(body);
+    await this.tenantService.assertStoreAccess(user, dto.storeId);
+    return this.posService.createProduct(dto);
   }
 
   @Get('stores/:id/tax')
-  async getStoreTax(@Param('id') id: string) {
+  async getStoreTax(
+    @CurrentUser() user: UserTokenPayload,
+    @Param('id') id: string,
+  ) {
+    await this.tenantService.assertStoreAccess(user, id);
     return this.posService.getStoreTax(id);
   }
 
   @Post('stores/:id/tax')
   async updateStoreTax(
+    @CurrentUser() user: UserTokenPayload,
     @Param('id') id: string,
-    @Body() body: { taxActive: boolean; taxRate: number },
+    @Body() dto: UpdateTaxDto,
   ) {
-    return this.posService.updateStoreTax(id, body.taxActive, body.taxRate);
+    await this.tenantService.assertStoreAccess(user, id);
+    return this.posService.updateStoreTax(id, dto.taxActive, dto.taxRate);
   }
 
   @Get('stores')
-  async getStores(@Query('ownerId') ownerId: string) {
-    return this.posService.getStores(ownerId);
+  async getStores(@CurrentUser() user: UserTokenPayload) {
+    return this.posService.getStores(user.ownerId);
   }
 
   @Post('stores/:id/target')
   async updateStoreTarget(
+    @CurrentUser() user: UserTokenPayload,
     @Param('id') id: string,
-    @Body() body: { target: number },
+    @Body() dto: UpdateTargetDto,
   ) {
-    return this.posService.updateStoreTarget(id, body.target);
+    await this.tenantService.assertStoreAccess(user, id);
+    return this.posService.updateStoreTarget(id, dto.target);
   }
 
   @Post('starting-cash')
   async setStartingCash(
-    @Body() body: {
-      storeId: string;
-      amount: number;
-      date: string;
-      createdById: string;
-      createdByName: string;
-    },
+    @CurrentUser() user: UserTokenPayload,
+    @Body() dto: StartingCashDto,
   ) {
-    return this.posService.setStartingCash(body);
+    await this.tenantService.assertStoreAccess(user, dto.storeId);
+    return this.posService.setStartingCash({
+      ...dto,
+      createdById: dto.createdById || user.ownerId,
+      createdByName: dto.createdByName || user.email,
+    });
   }
 
   @Get('starting-cash')
   async getStartingCash(
+    @CurrentUser() user: UserTokenPayload,
     @Query('storeId') storeId: string,
     @Query('date') date: string,
   ) {
+    await this.tenantService.assertStoreAccess(user, storeId);
     return this.posService.getStartingCash(storeId, date);
   }
 
   @Get('employee-kpi')
   async getEmployeeKPI(
+    @CurrentUser() user: UserTokenPayload,
     @Query('storeId') storeId?: string,
     @Query('period') period?: string,
-    @Query('ownerId') ownerId?: string,
   ) {
-    return this.posService.getEmployeeKPI(storeId, period, ownerId);
+    if (storeId) {
+      await this.tenantService.assertStoreAccess(user, storeId);
+    }
+    return this.posService.getEmployeeKPI(storeId, period, user.ownerId);
   }
 
   @Post('employees')
   async createEmployee(
-    @Body() body: {
-      ownerId: string;
-      storeId: string;
-      name: string;
-      email?: string;
-      password: string;
-      whatsappNum: string;
-      pin?: string;
-    },
+    @CurrentUser() user: UserTokenPayload,
+    @Body() dto: CreateEmployeeDto,
   ) {
-    return this.posService.createEmployee(body);
+    await this.tenantService.assertStoreAccess(user, dto.storeId);
+    return this.posService.createEmployee({
+      ...dto,
+      ownerId: user.ownerId,
+    });
   }
 
   @Get('employees')
   async getEmployees(
-    @Query('ownerId') ownerId?: string,
+    @CurrentUser() user: UserTokenPayload,
     @Query('storeId') storeId?: string,
   ) {
-    return this.posService.getEmployees(ownerId, storeId);
+    if (storeId) {
+      await this.tenantService.assertStoreAccess(user, storeId);
+    }
+    return this.posService.getEmployees(user.ownerId, storeId);
   }
 
   @Delete('employees/:id')
-  async deleteEmployee(@Param('id') id: string) {
-    return this.posService.deleteEmployee(id);
+  async deleteEmployee(
+    @CurrentUser() user: UserTokenPayload,
+    @Param('id') id: string,
+  ) {
+    return this.posService.deleteEmployee(id, user.ownerId);
   }
 }

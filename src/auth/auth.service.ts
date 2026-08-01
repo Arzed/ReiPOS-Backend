@@ -27,8 +27,9 @@ export class AuthService {
       throw new ConflictException('Email atau Nomor WhatsApp sudah terdaftar.');
     }
 
-    // Hash password
+    // Hash password & pin
     const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPin = await bcrypt.hash(pin, 10);
 
     // Create owner & default store
     return this.prisma.$transaction(async (tx) => {
@@ -37,7 +38,7 @@ export class AuthService {
           name: ownerName,
           email,
           password: hashedPassword,
-          pin: pin || '123456',
+          pin: hashedPin,
           whatsappNum,
         },
       });
@@ -107,7 +108,8 @@ export class AuthService {
       throw new UnauthorizedException('Pemilik tidak ditemukan.');
     }
 
-    if (owner.pin !== pin) {
+    const isPinValid = await bcrypt.compare(pin, owner.pin);
+    if (!isPinValid) {
       throw new UnauthorizedException('PIN salah.');
     }
 

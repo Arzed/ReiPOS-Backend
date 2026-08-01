@@ -13,7 +13,7 @@ model Owner {
   name          String
   email         String         @unique
   password      String
-  pin           String         @default("123456")
+  pin           String
   whatsappNum   String         @unique // Nomor WA pemilik yang terdaftar
   role          String         @default("owner") // "owner" atau "employee"
   storeId       String?        // Toko tempat pegawai ditempatkan
