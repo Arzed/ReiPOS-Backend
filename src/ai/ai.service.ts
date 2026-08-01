@@ -5,6 +5,7 @@ import * as dotenv from 'dotenv';
 import { AI_SKILLS } from './skills.config';
 import { getAiToolsDefinitions } from './tools/tools.definitions';
 import { MOBILE_APP_DESCRIPTION } from './prompts/mobile-layout.const';
+import { capitalizeTitle } from '../common/utils/string.util';
 
 dotenv.config();
 
@@ -123,7 +124,7 @@ export class AiService {
           const product = await this.prisma.product.create({
             data: {
               storeId: targetStoreId,
-              name: args.name,
+              name: capitalizeTitle(args.name),
               price: args.price,
               costPrice: args.costPrice,
               stock: args.stock,

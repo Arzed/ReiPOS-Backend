@@ -4,6 +4,7 @@ import * as QRCode from 'qrcode';
 import * as bcrypt from 'bcrypt';
 import { randomInt } from 'crypto';
 import axios from 'axios';
+import { capitalizeTitle } from '../common/utils/string.util';
 
 @Injectable()
 export class PosService {
@@ -316,7 +317,7 @@ export class PosService {
     return this.prisma.product.create({
       data: {
         storeId: data.storeId,
-        name: data.name,
+        name: capitalizeTitle(data.name),
         barcode,          // null is fine — @@unique([storeId, barcode]) allows multiple nulls
         price: data.price,
         costPrice: data.costPrice ?? Math.round(data.price * 0.7),
