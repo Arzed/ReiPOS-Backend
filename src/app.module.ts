@@ -13,10 +13,19 @@ import { ConfigModule } from './common/config/config.module';
 import { HealthModule } from './modules/health/health.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { APP_GUARD } from '@nestjs/core';
+import { ServeStaticModule } from '@nestjs/serve-static';
+import { join } from 'path';
 
 @Module({
   imports: [
     ConfigModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'public'),
+      serveRoot: '/download',
+      serveStaticOptions: {
+        index: false,
+      },
+    }),
     ThrottlerModule.forRoot([
       {
         ttl: 60000, // 60 seconds
