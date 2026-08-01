@@ -20,33 +20,45 @@ export class PosService {
   }
 
   async lookupBarcode(barcode: string) {
-    try {
-      const response = await axios.get(`https://world.openfoodfacts.net/api/v3.6/product/${barcode}.json`, {
-        timeout: 5000,
-        headers: { 'User-Agent': 'ReiPOS - Android App' },
-      });
+    const urls = [
+      `https://world.openfoodfacts.net/api/v3.6/product/${barcode}.json`,
+      `https://world.openfoodfacts.org/api/v2/product/${barcode}.json`,
+    ];
 
-      if (response.data && response.data.status === 1 && response.data.product) {
-        const p = response.data.product;
-        const productName =
-          p.product_name_id ||
-          p.product_name ||
-          p.product_name_en ||
-          p.abbreviated_product_name ||
-          null;
+    for (const url of urls) {
+      try {
+        const response = await axios.get(url, {
+          timeout: 6000,
+          headers: { 'User-Agent': 'ReiPOS - Android App' },
+        });
 
-        if (productName) {
-          return {
-            barcode,
-            found: true,
-            productName: productName.trim(),
-            brand: p.brands || null,
-          };
+        const data = response.data;
+        const isSuccess = data && (data.status === 1 || data.status === 'success' || data.status_verbose === 'product found' || data.result?.id === 'product_found');
+
+        if (isSuccess && data.product) {
+          const p = data.product;
+          const productName =
+            p.product_name ||
+            p.product_name_id ||
+            p.product_name_en ||
+            p.abbreviated_product_name ||
+            (p.product_name_ko || p.product_name_ja || p.product_name_zh) ||
+            null;
+
+          if (productName && typeof productName === 'string' && productName.trim().length > 0) {
+            return {
+              barcode,
+              found: true,
+              productName: productName.trim(),
+              brand: p.brands || null,
+            };
+          }
         }
+      } catch (e) {
+        // Continue to fallback URL
       }
-    } catch (e) {
-      // Ignore network / API lookup errors gracefully
     }
+
     return {
       barcode,
       found: false,
