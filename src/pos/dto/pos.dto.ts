@@ -43,6 +43,14 @@ export class CreateOrderDto {
   @IsString()
   @IsOptional()
   cashierName?: string;
+
+  @IsNumber()
+  @IsOptional()
+  cashReceived?: number;
+
+  @IsNumber()
+  @IsOptional()
+  cashChange?: number;
 }
 
 export class TambahStokDto {

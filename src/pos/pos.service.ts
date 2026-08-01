@@ -88,6 +88,8 @@ export class PosService {
     paymentMethod = 'QRIS',
     cashierId?: string,
     cashierName?: string,
+    cashReceived?: number,
+    cashChange?: number,
   ) {
     if (!items || items.length === 0) {
       throw new BadRequestException('Order must contain at least one item');
@@ -135,6 +137,8 @@ export class PosService {
         totalProfit,
         paymentStatus: 'PENDING',
         paymentMethod: paymentMethod,
+        cashReceived: cashReceived ?? null,
+        cashChange: cashChange ?? null,
         cashierId: cashierId || null,
         cashierName: cashierName || null,
         items: {

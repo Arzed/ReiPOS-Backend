@@ -67,6 +67,8 @@ model Order {
   totalProfit   Float
   paymentStatus String
   paymentMethod String
+  cashReceived  Float?
+  cashChange    Float?
   cashierId     String?
   cashierName   String?
   createdAt     DateTime    @default(now())
