@@ -6,7 +6,7 @@ import { JwtAuthGuard } from './auth/jwt-auth.guard';
 let appVersionState = {
   latestVersion: '1.0.2',
   minRequiredVersion: '1.0.2',
-  updateUrl: 'https://reipos-backend-production.up.railway.app/download/app-release.apk',
+  updateUrl: 'https://is3.cloudhost.id/zone-mart/app-release.apk',
   releaseNotes: 'Fitur baru laporan performa kasir dan peningkatan performa sistem.',
   forceUpdate: false,
 };
