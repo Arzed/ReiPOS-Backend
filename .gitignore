@@ -399,3 +399,5 @@ dist
 prisma/dev.db
 .webpack
 .serverless/**/*.zip
+scratch/*
+scripts/*
